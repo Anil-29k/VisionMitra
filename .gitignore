@@ -1,0 +1,59 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python tooling and test artifacts
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.pytype/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Jupyter and local development files
+.ipynb_checkpoints/
+.vscode/
+.idea/
+
+# Build and packaging output
+build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Large local ML artifacts
+models/*.pt
+models/*.pth
+models/*.ckpt
+models/*.onnx
+reports/generated/
+
+# Keep the data directory structure, but do not commit data files
+data/**
+!data/**/
+!data/**/.gitkeep
+
