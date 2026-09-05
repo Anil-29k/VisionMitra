@@ -37,16 +37,16 @@ sys.path.insert(
 # 2. IMPORT EXISTING MODULES
 # ==========================================
 
-from python.input.image_input import (
+from src.input.image_input import (
     load_fundus_image,
     get_image_info
 )
 
-from python.quality.quality_assessment import (
+from src.quality.quality_assessment import (
     analyze_image_data
 )
 
-from python.preprocessing.enhancement import (
+from src.preprocessing.enhancement import (
     enhance_fundus_image,
     save_enhanced_image
 )
