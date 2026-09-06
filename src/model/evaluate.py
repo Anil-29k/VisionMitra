@@ -1,4 +1,3 @@
-```python
 import torch
 import numpy as np
 
@@ -20,8 +19,12 @@ from src.model.dr_model import (
 # VisionMitra - V3 Locked Test Evaluation
 # ============================================================
 
+# MODEL_PATH = (
+#     "data/models/visionmitra_resnet18_v3_best.pth"
+# )
+
 MODEL_PATH = (
-    "data/models/visionmitra_resnet18_v3_best.pth"
+    "data/models/visionmitra_resnet18_v4_best.pth"
 )
 
 NUM_CLASSES = 5
@@ -63,7 +66,6 @@ def main():
         test_df
     ) = create_dataloaders(
         batch_size=16,
-        random_seed=42
     )
 
     print()

@@ -1,14 +1,14 @@
 """
 VisionMitra - APTOS Dataset Loader V3
 
-Uses OFFLINE PREPROCESSED images.
+Uses OFFLINE PREPROCESSED images and manifest.csv.
 
 Dataset split:
     70% Train
     15% Validation
     15% Test
 
-Preprocessing:
+Offline preprocessing:
     Quality Assessment + Enhancement
     has already been performed by:
 
@@ -17,9 +17,10 @@ Preprocessing:
 This loader DOES NOT perform QA or enhancement.
 
 It only:
-    1. Loads the preprocessed image
-    2. Applies training/validation/test transforms
-    3. Returns image + label
+    1. Loads the preprocessing manifest
+    2. Loads the preprocessed image
+    3. Applies training/validation/test transforms
+    4. Returns image + label
 
 Official APTOS test set remains untouched.
 """
@@ -33,8 +34,6 @@ from PIL import Image
 
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
-
-from sklearn.model_selection import train_test_split
 
 
 # ============================================================
@@ -56,9 +55,9 @@ PROCESSED_DIR = (
     / "APTOS-19"
 )
 
-TRAIN_CSV = (
-    APTOS_DIR
-    / "train.csv"
+MANIFEST_CSV = (
+    PROCESSED_DIR
+    / "manifest.csv"
 )
 
 OFFICIAL_TEST_CSV = (
@@ -83,10 +82,6 @@ CLASS_NAMES = {
 
 RANDOM_SEED = 42
 
-TRAIN_RATIO = 0.70
-VAL_RATIO = 0.15
-TEST_RATIO = 0.15
-
 IMAGE_SIZE = 224
 
 
@@ -96,179 +91,130 @@ IMAGE_SIZE = 224
 
 def set_seed(seed=RANDOM_SEED):
     """
-    Set random seed for reproducible dataset splitting.
+    Set random seed for reproducibility.
     """
 
     torch.manual_seed(seed)
 
 
 # ============================================================
-# LOAD APTOS DATAFRAME
+# LOAD PREPROCESSING MANIFEST
 # ============================================================
 
-def load_aptos_dataframe():
+def load_manifest():
     """
-    Load APTOS training CSV.
+    Load the offline preprocessing manifest.
+
+    The manifest is the source of truth for:
+        - image ID
+        - diagnosis
+        - dataset split
+        - quality status
+        - processed image path
+        - quality metrics
     """
 
-    if not TRAIN_CSV.exists():
+    if not MANIFEST_CSV.exists():
 
         raise FileNotFoundError(
-            f"APTOS training CSV not found:\n"
-            f"{TRAIN_CSV}"
-        )
-
-    df = pd.read_csv(
-        TRAIN_CSV
-    )
-
-    required_columns = {
-        "id_code",
-        "diagnosis",
-    }
-
-    if not required_columns.issubset(
-        df.columns
-    ):
-
-        raise ValueError(
-            f"CSV must contain: "
-            f"{required_columns}\n"
-            f"Found: {list(df.columns)}"
-        )
-
-    df = df[
-        [
-            "id_code",
-            "diagnosis",
-        ]
-    ].copy()
-
-    df["diagnosis"] = (
-        df["diagnosis"].astype(int)
-    )
-
-    return df
-
-
-# ============================================================
-# STRATIFIED 70 / 15 / 15 SPLIT
-# ============================================================
-
-def create_splits(
-    df,
-    random_seed=RANDOM_SEED
-):
-    """
-    Create the fixed stratified:
-
-        70% Train
-        15% Validation
-        15% Test
-
-    This MUST remain identical to the split used
-    during offline preprocessing.
-    """
-
-    if abs(
-        TRAIN_RATIO
-        + VAL_RATIO
-        + TEST_RATIO
-        - 1.0
-    ) > 1e-6:
-
-        raise ValueError(
-            "Train/Validation/Test ratios "
-            "must sum to 1."
-        )
-
-    # --------------------------------------------------------
-    # 70% Train
-    # 30% temporary
-    # --------------------------------------------------------
-
-    train_df, temp_df = train_test_split(
-        df,
-        test_size=(
-            VAL_RATIO + TEST_RATIO
-        ),
-        stratify=df["diagnosis"],
-        random_state=random_seed,
-    )
-
-    # --------------------------------------------------------
-    # Remaining 30%:
-    #
-    # 15% Validation
-    # 15% Test
-    # --------------------------------------------------------
-
-    val_df, test_df = train_test_split(
-        temp_df,
-        test_size=(
-            TEST_RATIO
-            / (VAL_RATIO + TEST_RATIO)
-        ),
-        stratify=temp_df["diagnosis"],
-        random_state=random_seed,
-    )
-
-    train_df = train_df.reset_index(
-        drop=True
-    )
-
-    val_df = val_df.reset_index(
-        drop=True
-    )
-
-    test_df = test_df.reset_index(
-        drop=True
-    )
-
-    return (
-        train_df,
-        val_df,
-        test_df,
-    )
-
-
-# ============================================================
-# PREPROCESSED IMAGE PATH
-# ============================================================
-
-def get_processed_image_path(
-    image_id,
-    split_name
-):
-    """
-    Return path to an already preprocessed image.
-
-    Example:
-
-        data/processed/APTOS-19/train/
-            abc123_enhanced.png
-    """
-
-    split_dir = (
-        PROCESSED_DIR
-        / split_name
-    )
-
-    image_path = (
-        split_dir
-        / f"{image_id}_enhanced.png"
-    )
-
-    if not image_path.exists():
-
-        raise FileNotFoundError(
-            f"Preprocessed image not found:\n"
-            f"{image_path}\n\n"
+            f"Preprocessing manifest not found:\n"
+            f"{MANIFEST_CSV}\n\n"
             f"Run:\n"
             f"python -m src.dataset.preprocess_aptos"
         )
 
-    return image_path
+    manifest = pd.read_csv(MANIFEST_CSV)
+
+    required_columns = {
+        "id_code",
+        "diagnosis",
+        "split",
+        "quality_status",
+        "processed_path",
+        "laplacian_score",
+        "tenengrad_score",
+        "mean_brightness",
+        "brightness_std",
+        "dark_ratio",
+        "fov_ratio",
+    }
+
+    missing_columns = (
+        required_columns - set(manifest.columns)
+    )
+
+    if missing_columns:
+
+        raise ValueError(
+            "Manifest is missing required columns:\n"
+            f"{sorted(missing_columns)}\n\n"
+            f"Found columns:\n"
+            f"{list(manifest.columns)}"
+        )
+
+    # --------------------------------------------------------
+    # Basic validation
+    # --------------------------------------------------------
+
+    manifest["diagnosis"] = (
+        manifest["diagnosis"]
+        .astype(int)
+    )
+
+    valid_splits = {
+        "train",
+        "validation",
+        "test",
+    }
+
+    invalid_splits = set(
+        manifest["split"].unique()
+    ) - valid_splits
+
+    if invalid_splits:
+
+        raise ValueError(
+            "Manifest contains invalid split names:\n"
+            f"{sorted(invalid_splits)}"
+        )
+
+    if manifest["id_code"].duplicated().any():
+
+        duplicates = (
+            manifest.loc[
+                manifest["id_code"].duplicated(),
+                "id_code"
+            ]
+            .tolist()
+        )
+
+        raise ValueError(
+            "Duplicate image IDs found in manifest.\n"
+            f"Examples: {duplicates[:10]}"
+        )
+
+    # --------------------------------------------------------
+    # Convert processed paths to absolute paths
+    # --------------------------------------------------------
+
+    def resolve_processed_path(path_value):
+
+        path = Path(str(path_value))
+
+        if path.is_absolute():
+
+            return str(path)
+
+        return str(
+            PROJECT_ROOT / path
+        )
+
+    manifest["processed_path"] = (
+        manifest["processed_path"]
+        .apply(resolve_processed_path)
+    )
+
+    return manifest
 
 
 # ============================================================
@@ -289,7 +235,7 @@ def print_class_distribution(
     )
 
     print(
-        "-" * 45
+        "-" * 55
     )
 
     total = len(df)
@@ -384,6 +330,7 @@ def get_transforms(
                     0.225
                 ]
             ),
+
         ])
 
     else:
@@ -411,6 +358,7 @@ def get_transforms(
                     0.225
                 ]
             ),
+
         ])
 
 
@@ -423,22 +371,18 @@ class APTOSDataset(Dataset):
     def __init__(
         self,
         dataframe,
-        split_name,
         transform=None
     ):
+        """
+        Create an APTOS dataset from manifest rows.
+        """
 
         self.dataframe = (
             dataframe
             .reset_index(drop=True)
         )
 
-        self.split_name = (
-            split_name
-        )
-
-        self.transform = (
-            transform
-        )
+        self.transform = transform
 
     def __len__(self):
 
@@ -455,6 +399,10 @@ class APTOSDataset(Dataset):
             self.dataframe.iloc[index]
         )
 
+        # ----------------------------------------------------
+        # Image information
+        # ----------------------------------------------------
+
         image_id = row[
             "id_code"
         ]
@@ -463,22 +411,43 @@ class APTOSDataset(Dataset):
             row["diagnosis"]
         )
 
+        image_path = Path(
+            row["processed_path"]
+        )
+
+        # ----------------------------------------------------
+        # Check processed image
+        # ----------------------------------------------------
+
+        if not image_path.exists():
+
+            raise FileNotFoundError(
+                f"Processed image not found:\n"
+                f"{image_path}\n\n"
+                f"Image ID: {image_id}"
+            )
+
         # ----------------------------------------------------
         # Load PREPROCESSED image
         # ----------------------------------------------------
 
-        image_path = (
-            get_processed_image_path(
-                image_id,
-                self.split_name
-            )
-        )
+        try:
 
-        image = (
-            Image.open(
-                image_path
-            ).convert("RGB")
-        )
+            image = (
+                Image.open(
+                    image_path
+                )
+                .convert("RGB")
+            )
+
+        except Exception as e:
+
+            raise RuntimeError(
+                f"Failed to load processed image:\n"
+                f"{image_path}\n"
+                f"Image ID: {image_id}\n"
+                f"Error: {e}"
+            )
 
         # ----------------------------------------------------
         # Apply transforms
@@ -503,12 +472,10 @@ class APTOSDataset(Dataset):
 # CREATE DATASETS
 # ============================================================
 
-def create_datasets(
-    random_seed=RANDOM_SEED
-):
+def create_datasets():
 
     set_seed(
-        random_seed
+        RANDOM_SEED
     )
 
     # --------------------------------------------------------
@@ -525,23 +492,79 @@ def create_datasets(
         )
 
     # --------------------------------------------------------
-    # Load labels
+    # Load manifest
     # --------------------------------------------------------
 
-    df = load_aptos_dataframe()
+    manifest = load_manifest()
 
-    # --------------------------------------------------------
-    # Same fixed split
-    # --------------------------------------------------------
-
-    (
-        train_df,
-        val_df,
-        test_df,
-    ) = create_splits(
-        df,
-        random_seed=random_seed
+    print()
+    print(
+        f"Manifest images: {len(manifest)}"
     )
+
+    # --------------------------------------------------------
+    # Create splits from manifest
+    # --------------------------------------------------------
+
+    train_df = (
+        manifest[
+            manifest["split"] == "train"
+        ]
+        .reset_index(drop=True)
+    )
+
+    val_df = (
+        manifest[
+            manifest["split"] == "validation"
+        ]
+        .reset_index(drop=True)
+    )
+
+    test_df = (
+        manifest[
+            manifest["split"] == "test"
+        ]
+        .reset_index(drop=True)
+    )
+
+    # --------------------------------------------------------
+    # Validate total
+    # --------------------------------------------------------
+
+    total_split_images = (
+        len(train_df)
+        + len(val_df)
+        + len(test_df)
+    )
+
+    if total_split_images != len(manifest):
+
+        raise RuntimeError(
+            "Split counts do not match manifest total.\n"
+            f"Manifest: {len(manifest)}\n"
+            f"Splits:   {total_split_images}"
+        )
+
+    # --------------------------------------------------------
+    # Validate labels
+    # --------------------------------------------------------
+
+    for name, split_df in [
+        ("TRAIN", train_df),
+        ("VALIDATION", val_df),
+        ("TEST", test_df),
+    ]:
+
+        invalid_labels = (
+            ~split_df["diagnosis"]
+            .isin(range(NUM_CLASSES))
+        )
+
+        if invalid_labels.any():
+
+            raise ValueError(
+                f"{name} contains invalid diagnosis labels."
+            )
 
     # --------------------------------------------------------
     # Dataset objects
@@ -549,7 +572,6 @@ def create_datasets(
 
     train_dataset = APTOSDataset(
         dataframe=train_df,
-        split_name="train",
         transform=get_transforms(
             train=True
         )
@@ -557,7 +579,6 @@ def create_datasets(
 
     val_dataset = APTOSDataset(
         dataframe=val_df,
-        split_name="validation",
         transform=get_transforms(
             train=False
         )
@@ -565,7 +586,6 @@ def create_datasets(
 
     test_dataset = APTOSDataset(
         dataframe=test_df,
-        split_name="test",
         transform=get_transforms(
             train=False
         )
@@ -586,8 +606,7 @@ def create_datasets(
 # ============================================================
 
 def create_dataloaders(
-    batch_size=16,
-    random_seed=RANDOM_SEED
+    batch_size=16
 ):
 
     (
@@ -597,9 +616,7 @@ def create_dataloaders(
         train_df,
         val_df,
         test_df,
-    ) = create_datasets(
-        random_seed=random_seed
-    )
+    ) = create_datasets()
 
     # --------------------------------------------------------
     # Training
@@ -675,6 +692,65 @@ def get_official_test_dataframe():
 
 
 # ============================================================
+# VERIFY PROCESSED IMAGES
+# ============================================================
+
+def verify_processed_images(
+    manifest
+):
+    """
+    Verify every processed image referenced
+    by manifest.csv exists.
+    """
+
+    print()
+    print(
+        "Checking processed images..."
+    )
+
+    missing = []
+
+    for _, row in manifest.iterrows():
+
+        path = Path(
+            row["processed_path"]
+        )
+
+        if not path.exists():
+
+            missing.append(
+                str(path)
+            )
+
+    if missing:
+
+        print()
+        print(
+            f"Missing processed images: "
+            f"{len(missing)}"
+        )
+
+        for path in missing[:10]:
+
+            print(
+                f"  {path}"
+            )
+
+        raise RuntimeError(
+            "Processed dataset verification failed."
+        )
+
+    print(
+        f"Processed images verified: "
+        f"{len(manifest)}"
+    )
+
+    print(
+        "Processed dataset: PASSED ✅"
+    )
+
+
+# ============================================================
 # MAIN SANITY CHECK
 # ============================================================
 
@@ -689,7 +765,7 @@ def main():
 
     print()
     print(
-        "Mode: PREPROCESSED DATA"
+        "Mode: OFFLINE PREPROCESSED DATA"
     )
 
     print(
@@ -700,50 +776,77 @@ def main():
         "Enhancement: ALREADY DONE"
     )
 
-    print()
-
-    # --------------------------------------------------------
-    # Load original labels
-    # --------------------------------------------------------
-
-    df = load_aptos_dataframe()
-
     print(
-        f"Total labeled APTOS images: "
-        f"{len(df)}"
+        f"Manifest: {MANIFEST_CSV}"
     )
 
     # --------------------------------------------------------
-    # Create fixed split
+    # Load manifest
     # --------------------------------------------------------
 
-    (
-        train_df,
-        val_df,
-        test_df,
-    ) = create_splits(
-        df,
-        random_seed=RANDOM_SEED
-    )
+    manifest = load_manifest()
 
     print()
     print(
-        "Dataset split:"
+        f"Total manifest images: "
+        f"{len(manifest)}"
+    )
+
+    # --------------------------------------------------------
+    # Verify processed files
+    # --------------------------------------------------------
+
+    verify_processed_images(
+        manifest
+    )
+
+    # --------------------------------------------------------
+    # Create split dataframes
+    # --------------------------------------------------------
+
+    train_df = (
+        manifest[
+            manifest["split"] == "train"
+        ]
+        .reset_index(drop=True)
+    )
+
+    val_df = (
+        manifest[
+            manifest["split"] == "validation"
+        ]
+        .reset_index(drop=True)
+    )
+
+    test_df = (
+        manifest[
+            manifest["split"] == "test"
+        ]
+        .reset_index(drop=True)
+    )
+
+    # --------------------------------------------------------
+    # Dataset split
+    # --------------------------------------------------------
+
+    print()
+    print(
+        "Dataset split from manifest:"
     )
 
     print(
         f"Train      : {len(train_df)} "
-        f"({len(train_df) / len(df) * 100:.2f}%)"
+        f"({len(train_df) / len(manifest) * 100:.2f}%)"
     )
 
     print(
         f"Validation : {len(val_df)} "
-        f"({len(val_df) / len(df) * 100:.2f}%)"
+        f"({len(val_df) / len(manifest) * 100:.2f}%)"
     )
 
     print(
         f"Test       : {len(test_df)} "
-        f"({len(test_df) / len(df) * 100:.2f}%)"
+        f"({len(test_df) / len(manifest) * 100:.2f}%)"
     )
 
     print(
@@ -831,66 +934,25 @@ def main():
     ) == 0
 
     print(
-        "No image overlap: PASSED"
+        "No image overlap: PASSED ✅"
     )
 
     # --------------------------------------------------------
-    # Check processed files
+    # Quality status summary
     # --------------------------------------------------------
 
     print()
     print(
-        "Checking processed images..."
+        "Quality status:"
     )
 
-    missing = []
-
-    for split_name, split_df in [
-        ("train", train_df),
-        ("validation", val_df),
-        ("test", test_df),
-    ]:
-
-        for image_id in split_df[
-            "id_code"
-        ]:
-
-            path = (
-                PROCESSED_DIR
-                / split_name
-                / f"{image_id}_enhanced.png"
-            )
-
-            if not path.exists():
-
-                missing.append(
-                    str(path)
-                )
-
-    if missing:
-
-        print(
-            f"Missing processed images: "
-            f"{len(missing)}"
-        )
-
-        for path in missing[:10]:
-
-            print(
-                f"  {path}"
-            )
-
-        raise RuntimeError(
-            "Processed dataset verification failed."
-        )
-
-    print(
-        f"Processed images verified: "
-        f"{len(df)}"
+    quality_summary = pd.crosstab(
+        manifest["split"],
+        manifest["quality_status"]
     )
 
     print(
-        "Processed dataset: PASSED ✅"
+        quality_summary
     )
 
     # --------------------------------------------------------
@@ -904,9 +966,7 @@ def main():
         _,
         _,
         _,
-    ) = create_datasets(
-        random_seed=RANDOM_SEED
-    )
+    ) = create_datasets()
 
     print()
     print(
@@ -1000,8 +1060,7 @@ def main():
         _,
         _,
     ) = create_dataloaders(
-        batch_size=16,
-        random_seed=RANDOM_SEED
+        batch_size=16
     )
 
     train_images, train_labels = next(

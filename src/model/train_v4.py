@@ -1,5 +1,10 @@
 """
-VisionMitra - DR Model Training V3
+VisionMitra - DR Model Training V4
+
+V4:
+    Enhanced APTOS images
+    ResNet18 fine-tuning
+    Separate learning rates for backbone and FC layer
 
 Dataset:
     APTOS 2019
@@ -11,17 +16,6 @@ Split:
 
 IMPORTANT:
     The test set is NEVER used during training or model selection.
-
-Pipeline:
-    Fundus Image
-        ↓
-    Quality Assessment
-        ↓
-    Adaptive Enhancement
-        ↓
-    ResNet18
-        ↓
-    DR Classification (0-4)
 """
 
 import time
@@ -32,7 +26,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from src.dataset.dataset_loader import create_dataloaders
-from src.model.dr_model import create_model, freeze_backbone
+from src.model.dr_model import create_model
 
 
 # ============================================================
@@ -43,9 +37,10 @@ NUM_CLASSES = 5
 
 BATCH_SIZE = 16
 
-NUM_EPOCHS = 5
+NUM_EPOCHS = 10
 
-LEARNING_RATE = 0.001
+BACKBONE_LR = 0.0001
+FC_LR = 0.001
 
 RANDOM_SEED = 42
 
@@ -56,10 +51,8 @@ RANDOM_SEED = 42
 
 def calculate_class_weights(train_df):
     """
-    Calculate inverse-frequency class weights from
-    the training set only.
-
-    This helps reduce the effect of class imbalance.
+    Calculate inverse-frequency class weights
+    from the training set only.
     """
 
     class_counts = (
@@ -109,9 +102,6 @@ def train_one_epoch(
     optimizer,
     device
 ):
-    """
-    Train the model for one epoch.
-    """
 
     model.train()
 
@@ -124,42 +114,18 @@ def train_one_epoch(
         images = images.to(device)
         labels = labels.to(device)
 
-        # ----------------------------------------------------
-        # Clear gradients
-        # ----------------------------------------------------
-
         optimizer.zero_grad()
 
-        # ----------------------------------------------------
-        # Forward pass
-        # ----------------------------------------------------
-
         outputs = model(images)
-
-        # ----------------------------------------------------
-        # Loss
-        # ----------------------------------------------------
 
         loss = criterion(
             outputs,
             labels
         )
 
-        # ----------------------------------------------------
-        # Backpropagation
-        # ----------------------------------------------------
-
         loss.backward()
 
-        # ----------------------------------------------------
-        # Update weights
-        # ----------------------------------------------------
-
         optimizer.step()
-
-        # ----------------------------------------------------
-        # Statistics
-        # ----------------------------------------------------
 
         running_loss += (
             loss.item()
@@ -178,7 +144,6 @@ def train_one_epoch(
         total += labels.size(0)
 
     epoch_loss = running_loss / total
-
     epoch_accuracy = correct / total
 
     return (
@@ -197,12 +162,6 @@ def validate(
     criterion,
     device
 ):
-    """
-    Evaluate the model on the validation set.
-
-    IMPORTANT:
-        This function does NOT use the test set.
-    """
 
     model.eval()
 
@@ -241,7 +200,6 @@ def validate(
             total += labels.size(0)
 
     val_loss = running_loss / total
-
     val_accuracy = correct / total
 
     return (
@@ -251,14 +209,14 @@ def validate(
 
 
 # ============================================================
-# MAIN TRAINING
+# MAIN
 # ============================================================
 
 def main():
 
     print()
     print("=" * 70)
-    print("       VISIONMITRA - DR MODEL TRAINING V3")
+    print("       VISIONMITRA - DR MODEL TRAINING V4")
     print("=" * 70)
 
     start_time = time.time()
@@ -280,21 +238,27 @@ def main():
     # RANDOM SEED
     # ========================================================
 
-    torch.manual_seed(RANDOM_SEED)
+    torch.manual_seed(
+        RANDOM_SEED
+    )
 
     # ========================================================
-    # LOAD DATASET
+    # DATASET
     # ========================================================
 
     print()
     print("Loading APTOS dataset...")
     print()
+
     print("Dataset split:")
     print("  70% → Training")
     print("  15% → Validation")
     print("  15% → Test")
     print()
-    print("Test set will remain LOCKED during training. 🔒")
+
+    print(
+        "Test set will remain LOCKED during training. 🔒"
+    )
 
     (
         train_loader,
@@ -304,7 +268,7 @@ def main():
         val_df,
         test_df
     ) = create_dataloaders(
-        batch_size=BATCH_SIZE,
+        batch_size=BATCH_SIZE
     )
 
     print()
@@ -357,7 +321,7 @@ def main():
         )
 
     # ========================================================
-    # CREATE MODEL
+    # MODEL
     # ========================================================
 
     print()
@@ -367,19 +331,33 @@ def main():
         pretrained=True
     )
 
-    # --------------------------------------------------------
-    # Freeze backbone
-    # --------------------------------------------------------
+    # ========================================================
+    # V4: FULL FINE-TUNING
+    # ========================================================
 
-    model = freeze_backbone(
-        model
+    print()
+    print(
+        "V4 fine-tuning enabled. 🔓"
     )
+
+    print(
+        "Backbone learning rate:",
+        BACKBONE_LR
+    )
+
+    print(
+        "FC learning rate:",
+        FC_LR
+    )
+
+    # Make every parameter trainable.
+    for parameter in model.parameters():
+        parameter.requires_grad = True
 
     model = model.to(device)
 
-    print(
-        "Model ready. ✅"
-    )
+    print()
+    print("Model ready. ✅")
 
     # ========================================================
     # LOSS
@@ -399,8 +377,36 @@ def main():
     # ========================================================
 
     optimizer = optim.Adam(
-        model.fc.parameters(),
-        lr=LEARNING_RATE
+        [
+            {
+                "params": model.conv1.parameters(),
+                "lr": BACKBONE_LR
+            },
+            {
+                "params": model.bn1.parameters(),
+                "lr": BACKBONE_LR
+            },
+            {
+                "params": model.layer1.parameters(),
+                "lr": BACKBONE_LR
+            },
+            {
+                "params": model.layer2.parameters(),
+                "lr": BACKBONE_LR
+            },
+            {
+                "params": model.layer3.parameters(),
+                "lr": BACKBONE_LR
+            },
+            {
+                "params": model.layer4.parameters(),
+                "lr": BACKBONE_LR
+            },
+            {
+                "params": model.fc.parameters(),
+                "lr": FC_LR
+            }
+        ]
     )
 
     print(
@@ -429,17 +435,17 @@ def main():
     )
 
     # ========================================================
-    # V3 CHECKPOINT
+    # V4 CHECKPOINT
     # ========================================================
 
     best_model_path = (
         model_dir
-        / "visionmitra_resnet18_v3_best.pth"
+        / "visionmitra_resnet18_v4_best.pth"
     )
 
     print()
     print(
-        "Best V3 model will be saved to:"
+        "Best V4 model will be saved to:"
     )
 
     print(
@@ -452,8 +458,25 @@ def main():
 
     print()
     print("=" * 70)
-    print("STARTING TRAINING V3")
+    print("STARTING TRAINING V4")
     print("=" * 70)
+
+    print()
+    print(
+        "Full backbone fine-tuning: ENABLED 🔓"
+    )
+
+    print(
+        f"Epochs: {NUM_EPOCHS}"
+    )
+
+    print(
+        f"Backbone LR: {BACKBONE_LR}"
+    )
+
+    print(
+        f"FC LR:       {FC_LR}"
+    )
 
     best_val_accuracy = 0.0
     best_epoch = 0
@@ -554,7 +577,7 @@ def main():
 
             print()
             print(
-                "⭐ New best V3 model saved!"
+                "⭐ New best V4 model saved!"
             )
 
             print(
@@ -563,7 +586,7 @@ def main():
             )
 
     # ========================================================
-    # TRAINING COMPLETE
+    # COMPLETE
     # ========================================================
 
     total_time = (
@@ -573,10 +596,11 @@ def main():
 
     print()
     print("=" * 70)
-    print("TRAINING V3 COMPLETE ✅")
+    print("TRAINING V4 COMPLETE ✅")
     print("=" * 70)
 
     print()
+
     print(
         f"Best validation accuracy: "
         f"{best_val_accuracy:.2%}"
@@ -588,6 +612,7 @@ def main():
     )
 
     print()
+
     print(
         "Model saved to:"
     )
@@ -597,12 +622,14 @@ def main():
     )
 
     print()
+
     print(
         f"Total training time: "
         f"{total_time / 60:.1f} minutes"
     )
 
     print()
+
     print(
         "IMPORTANT:"
     )
@@ -613,17 +640,13 @@ def main():
     )
 
     print(
-        "Run the separate evaluation script "
-        "after training to obtain final test metrics."
+        "Run the separate V4 evaluation "
+        "script after training."
     )
 
     print()
     print("=" * 70)
 
-
-# ============================================================
-# ENTRY POINT
-# ============================================================
 
 if __name__ == "__main__":
 
