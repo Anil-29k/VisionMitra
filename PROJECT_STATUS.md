@@ -1,134 +1,91 @@
 # VisionMitra — Project Status
 
-**Last updated:** 2026-09-05  
+**Last updated:** 2026-09-06  **Time**:7.45AM
 **Team:** Hack Elite  
 **SIH PS:** 26038 / SIH26038  
 **Status:** 🟡 Under Development
 
 ## Legend
+
 - ⬜ Not Started
 - 🟡 In Progress
 - 🟢 Completed
 - 🔵 Needs Validation / Improvement
 - 🔴 Blocked
 
+---
+
 ## Current Status
+
 | Area | Status |
 |---|---|
-| Project structure | 🟡 In Progress |
+| Project structure | 🟢 Completed |
 | Python virtual environment | 🟢 Completed |
-| Dependencies | ⬜ Not Started |
-| Dataset setup | ⬜ Not Started |
-| Image input | ⬜ Not Started |
-| Quality assessment | ⬜ Not Started |
-| Enhancement | ⬜ Not Started |
+| Dependencies | 🟢 Completed |
+| Dataset setup | 🟢 Completed |
+| Image input | 🟢 Completed |
+| Quality assessment | 🟢 Completed |
+| Enhancement | 🟢 Completed |
 | Retinal structure analysis | ⬜ Not Started |
 | Lesion analysis | ⬜ Not Started |
-| DR grading model | ⬜ Not Started |
+| DR grading model | 🔵 Needs Validation / Improvement |
 | Grad-CAM / XAI | ⬜ Not Started |
 | Confidence calibration | ⬜ Not Started |
 | Dashboard/report | ⬜ Not Started |
 | MATLAB integration | ⬜ Not Started |
 | Simulink workflow | ⬜ Not Started |
-| Validation | ⬜ Not Started |
+| Validation | 🔵 In Progress |
 | Final demo | ⬜ Not Started |
 | PPT/demo story | ⬜ Not Started |
 
-## Phase Checklist
-### Phase 0 — Setup
+---
+
+# Phase Checklist
+
+## Phase 0 — Setup
+
 - 🟢 Python venv created
-- 🟡 Project documentation created
-- ⬜ Install dependencies
-- ⬜ Initialize Git
-- ⬜ Organize dataset
-- ⬜ Process first test image
+- 🟢 Project documentation created
+- 🟢 Dependencies installed
+- 🟡 Git initialization
+- 🟢 APTOS 2019 dataset organized
+- 🟢 Initial fundus image loaded and tested
 
-### Phase 1 — Image Pipeline
-- ⬜ Image loader
-- ⬜ Focus/sharpness score
-- ⬜ Illumination check
-- ⬜ Field-of-view check
-- ⬜ Quality score
-- ⬜ Gradeable/ungradeable decision
-- ⬜ Recapture feedback
-- ⬜ CLAHE
-- ⬜ Illumination normalization
-- ⬜ Denoising
+## Phase 1 — Image Pipeline
 
-### Phase 2 — Retinal & Lesion Analysis
-- ⬜ Optic disc localization
-- ⬜ Fovea localization
-- ⬜ Vessel segmentation
-- ⬜ Microaneurysm analysis
-- ⬜ Exudate analysis
-- ⬜ Hemorrhage analysis
-- ⬜ Neovascularization analysis
-- ⬜ Lesion visualization/evidence
+- 🟢 Image loader
+- 🟢 Focus/sharpness score
+- 🟢 Illumination check
+- 🟢 Field-of-view check
+- 🟢 Quality classification
+- 🟢 Gradeable/poor-quality decision
+- 🟢 Recapture/reject feedback
+- 🟢 CLAHE
+- 🟢 Illumination normalization
+- 🟢 Denoising
+- 🟢 Offline preprocessing pipeline
+- 🟢 Processed-image manifest
+- 🔵 Quality/enhancement thresholds need further validation
 
-### Phase 3 — DR AI
-- ⬜ Dataset preprocessing
-- ⬜ Train/validation/test split
-- ⬜ Baseline model
-- ⬜ Training pipeline
-- ⬜ Level 0–4 inference
-- ⬜ Referable DR inference
-- ⬜ Model export
+### APTOS Preprocessing
 
-### Phase 4 — XAI
-- ⬜ Grad-CAM
-- ⬜ Heatmap overlay
-- ⬜ Lesion evidence integration
-- ⬜ Confidence scores
-- ⬜ Calibration
-- ⬜ Human-readable explanation
+**3662 labeled images processed successfully.**
 
-### Phase 5 — UI/Report
-- ⬜ Upload screen
-- ⬜ Quality result
-- ⬜ Enhancement preview
-- ⬜ DR result
-- ⬜ Grad-CAM/evidence view
-- ⬜ Review workflow
-- ⬜ Automated report
+Quality results:
 
-### Phase 6 — MATLAB/Simulink
-- ⬜ MATLAB integration
-- ⬜ Patient arrival model
-- ⬜ Acquisition
-- ⬜ Bandwidth
-- ⬜ AI processing
-- ⬜ Ophthalmologist review
-- ⬜ Queue/capacity
-- ⬜ 100,000+ patient scenario
-- ⬜ Optimization results
+- GOOD: **3164**
+- BORDERLINE: **496**
+- POOR: **2**
+- Processing failures: **0**
 
-### Phase 7 — Validation
-- ⬜ APTOS
-- ⬜ IDRiD
-- ⬜ DRIVE
-- ⬜ Messidor-2
-- ⬜ Sensitivity/specificity
-- ⬜ Confusion matrix
-- ⬜ F1/ROC-AUC
-- ⬜ Cross-dataset testing
-- ⬜ Quality-gate evaluation
-- ⬜ XAI evaluation
+Processed manifest:
 
-## Immediate Next Actions
-1. Install dependencies in `.venv`.
-2. Create the full folder structure.
-3. Select/download a small initial fundus dataset.
-4. Load and display the first image.
-5. Build the first image-quality baseline.
-
-## First Milestone
 ```text
-Fundus Image → Quality Check → Preprocessing → DR Model → Grad-CAM → Prediction + Explanation
-```
+data/processed/APTOS-19/manifest.csv
+````
 
-## Change Log
-### 2026-09-05
-- Development started.
-- Python virtual environment created.
-- Initial architecture defined.
-- README, requirements and status tracker created.
+Traning Log:
+
+```text
+Model_report.txt
+```
