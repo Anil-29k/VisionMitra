@@ -707,3 +707,143 @@ Epoch Time:      447.1 seconds
 ⭐ New best V5 model saved!
    Validation accuracy: 76.87%
    Epoch: 3
+
+Epoch 4/15
+----------------------------------------------------------------------
+Train Loss:      0.4181
+Train Accuracy:  88.33%
+Val Loss:        0.9885
+Val Accuracy:    75.23%
+Backbone LR:     0.00002723
+FC LR:           0.00027145
+Epoch Time:      413.3 seconds
+
+💾 Recovery checkpoint saved.
+
+Epoch 5/15
+----------------------------------------------------------------------
+Train Loss:      0.2851
+Train Accuracy:  92.16%
+Val Loss:        1.1206
+Val Accuracy:    76.32%
+Backbone LR:     0.00002520
+FC LR:           0.00025054
+Epoch Time:      455.1 seconds
+
+💾 Recovery checkpoint saved.
+
+Epoch 6/15
+----------------------------------------------------------------------
+Train Loss:      0.2386
+Train Accuracy:  93.33%
+Val Loss:        1.2188
+Val Accuracy:    79.96%
+Backbone LR:     0.00002275
+FC LR:           0.00022525
+Epoch Time:      439.5 seconds
+
+⭐ New best V5 model saved!
+   Validation accuracy: 79.96%
+   Epoch: 6
+Epoch 7/15
+----------------------------------------------------------------------
+Train Loss:      0.4919
+Train Accuracy:  85.91%
+Val Loss:        1.1772
+Val Accuracy:    75.41%
+Backbone LR:     0.00001998
+FC LR:           0.00019670
+Epoch Time:      445.9 seconds
+
+
+======================================================================
+       VISIONMITRA - V5 TEST EVALUATION
+======================================================================
+
+Device: cpu
+
+Loading APTOS dataset...
+
+Manifest images: 3662
+
+Dataset loaded successfully. ✅
+Training images:   2563
+Validation images: 549
+Locked test images: 550
+
+Validation set was used for model selection.
+Locked test set is being used ONLY for final evaluation. 🔒
+
+Loading V5 trained model...
+Best V5 model loaded successfully. ✅
+
+Running predictions on locked test set...
+Test prediction complete. ✅
+Evaluated images: 550
+
+======================================================================
+OVERALL TEST PERFORMANCE
+======================================================================
+Accuracy:          80.91%
+Balanced Accuracy: 61.28%
+
+======================================================================
+PER-CLASS TEST PERFORMANCE
+======================================================================
+                  precision    recall  f1-score   support
+
+           No DR     0.9532    0.9779    0.9654       271
+       Mild NPDR     0.5652    0.4643    0.5098        56
+   Moderate NPDR     0.7143    0.8333    0.7692       150
+     Severe NPDR     0.5789    0.3793    0.4583        29
+Proliferative DR     0.5625    0.4091    0.4737        44
+
+        accuracy                         0.8091       550
+       macro avg     0.6748    0.6128    0.6353       550
+    weighted avg     0.7976    0.8091    0.7994       550
+
+======================================================================
+CONFUSION MATRIX
+======================================================================
+
+Rows = Actual
+Columns = Predicted
+
+Actual         0    1    2    3    4
+---------------------------------------------
+Grade 0       265    6    0    0    0
+Grade 1         6   26   22    2    0
+Grade 2         5   12  125    3    5
+Grade 3         1    0    8   11    9
+Grade 4         1    2   20    3   18
+
+======================================================================
+REFERABLE DR SCREENING - TEST SET
+======================================================================
+
+Grade 0-1 → Non-referable
+Grade 2-4 → Referable
+
+Accuracy:    91.82%
+Sensitivity: 90.58%
+Specificity: 92.66%
+
+TP: 202
+TN: 303
+FP: 24
+FN: 21
+
+======================================================================
+SIH SCREENING TARGET CHECK
+======================================================================
+
+Target sensitivity: >90%
+Target specificity: >85%
+
+Sensitivity target: PASSED ✅
+Specificity target: PASSED ✅
+
+======================================================================
+V5 TEST EVALUATION COMPLETE ✅
+======================================================================
+

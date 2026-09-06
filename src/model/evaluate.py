@@ -24,7 +24,8 @@ from src.model.dr_model import (
 # )
 
 MODEL_PATH = (
-    "data/models/visionmitra_resnet18_v4_best.pth"
+    # "data/models/visionmitra_resnet18_v4_best.pth"
+    "data/models/visionmitra_resnet18_v5_best.pth"
 )
 
 NUM_CLASSES = 5
